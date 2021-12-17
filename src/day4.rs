@@ -1,51 +1,107 @@
-use crypto::digest::Digest;
-use crypto::md5::Md5;
-use std::u32;
 
-#[aoc(day4, part1)]
-pub fn part1(secret: &str) -> u32 {
-    solver(secret, |hash| hash[0..2] == [0; 2] && (hash[2] & 0xF0) == 0)
+type Field = (u32, bool);
+type Board = (bool, [[Field; 5]; 5]);
+
+#[aoc_generator(day4)]
+pub fn input_generator(input: &str) -> (Vec<Board>, Vec<u32>){
+    let mut lines = input.lines();
+    let numbers = lines.next().unwrap().split(',').map(|s| s.parse::<u32>().unwrap()).collect::<Vec<u32>>();
+
+    let mut boards: Vec<Board> = Vec::new();
+    loop {
+        let empty = lines.next();
+        if let None = empty {
+            break;
+        }
+        let mut board: Board = (false, [[(0,false); 5]; 5]);
+        for i in 0..5 {
+
+            let line = lines.next().unwrap();
+
+            let row = line.split_whitespace().map(|s| s.parse::<u32>().unwrap()).collect::<Vec<u32>>();
+            for j in 0..5 {
+                board.1[i][j] = (row[j], false);
+            }
+
+        }
+        boards.push(board);
+    }
+    (boards, numbers)
+
+
 }
+
 
 #[aoc(day4, part2)]
-pub fn part2(secret: &str) -> u32 {
-    solver(secret, |hash| hash[0..3] == [0; 3])
-}
+pub fn solve_part2((boards, numbers): &(Vec<Board>, Vec<u32>)) -> u32 {
 
-fn solver(secret: &str, is_valid: impl Fn(&[u8; 16]) -> bool) -> u32 {
-    let mut hash = [0; 16];
+    let mut boards = boards.clone();
+    let numbers = numbers.clone();
 
-    let mut hasher = Md5::new();
-    hasher.input_str(secret);
+    let mut winner: Board = (false, [[(0,false); 5]; 5]);
+    let mut lastnumber = 0;
 
-    (1..=u32::MAX)
-        .map(|i| {
-            let mut hasher = hasher;
-            hasher.input_str(&i.to_string());
-            hasher.result(&mut hash);
+    let mut len = boards.len();
 
-            (i, is_valid(&hash))
-        }).find(|&(_, b)| b)
-        .map(|(i, _)| i)
-        .expect("result is bigger than u32")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    // If your secret key is abcdef, the answer is 609043, because the MD5 hash of abcdef609043
-    // starts with five zeroes (000001dbbfa...), and it is the lowest such number to do so.
-    fn example1() {
-        assert_eq!(part1("abcdef"), 609043);
+    'out: for number in numbers {
+        for board in boards.iter_mut() {
+            for i in 0..5 {
+                for j in 0..5 {
+                    if board.1[i][j].0 == number {
+                        board.1[i][j] = (number, true);
+                    }
+                }
+            }
+            if board.0 {
+                continue;
+            }
+            let mut valid = false;
+            // Check for valid board
+            for i in 0..5 {
+                let mut ok = true;
+                for j in 0..5 {
+                    if board.1[i][j].1 == false {
+                        ok = false;
+                    }
+                }
+                if ok {
+                    // board is valid
+                    winner = board.clone();
+                    lastnumber = number;
+                    valid = true;
+                }
+            }
+            for j in 0..5 {
+                let mut ok = true;
+                for i in 0..5 {
+                    if board.1[i][j].1 == false {
+                        ok = false;
+                    }
+                }
+                if ok {
+                    // board is valid
+                    winner = board.clone();
+                    lastnumber = number;
+                    valid = true;
+                }
+            }
+            if valid {
+                board.0 = true;
+                len -= 1;
+                if len == 0 {
+                    break 'out;
+                }
+            }
+        }
+    }
+    let mut sum: u32 = 0;
+    for i in 0..5 {
+        for j in 0..5 {
+            if !winner.1[i][j].1 {
+                sum += winner.1[i][j].0;
+            }
+        }
     }
 
-    #[test]
-    // If your secret key is pqrstuv, the lowest number it combines with to make an MD5 hash
-    // starting with five zeroes is 1048970; that is, the MD5 hash of pqrstuv1048970 looks like
-    // 000006136ef....
-    fn example2() {
-        assert_eq!(part1("pqrstuv"), 1048970);
-    }
+    lastnumber * sum
 }

@@ -1,132 +1,67 @@
-// It contains at least three vowels (aeiou only), like aei, xazegov, or aeiouaeiouaeiou.
-fn three_vowels(string: &str) -> bool {
-    string
-        .chars()
-        .filter(|&c| match c {
-            'a' | 'e' | 'i' | 'o' | 'u' => true,
-            _ => false,
-        }).count()
-        >= 3
-}
+type Point = (usize, usize);
+type Arrow = (Point, Point);
 
-// It contains at least one letter that appears twice in a row, like xx, abcdde (dd), or aabbccdd (aa, bb, cc, or dd).
-fn twice_in_a_row(string: &str) -> bool {
-    string
-        .chars()
-        .zip(string.chars().skip(1))
-        .any(|(a, b)| a == b)
-}
 
-// It does not contain the strings ab, cd, pq, or xy, even if they are part of one of the other requirements.
-fn no_forbidden_strings(string: &str) -> bool {
-    string
-        .chars()
-        .zip(string.chars().skip(1))
-        .all(|ab| match ab {
-            ('a', 'b') | ('c', 'd') | ('p', 'q') | ('x', 'y') => false,
-            _ => true,
+#[aoc_generator(day5)]
+pub fn input_generator(input: &str) -> Vec<Arrow> {
+    input
+        .lines()
+        .map(|line| {
+            let pointsstr = line.split("->");
+            let points: Vec<Point> = pointsstr.map(|point| {
+                let mut point = point.split(",");
+                let x = point.next().unwrap().trim().parse::<usize>().unwrap();
+                let y = point.next().unwrap().trim().parse::<usize>().unwrap();
+                (x, y)
+            }).collect();
+            (points[0], points[1])
         })
-}
-
-fn is_nice(string: &str) -> bool {
-    three_vowels(string) && twice_in_a_row(string) && no_forbidden_strings(string)
-}
-
-#[aoc(day5, part1)]
-pub fn part1(input: &str) -> usize {
-    input.lines().filter(|l| is_nice(l.trim())).count()
-}
-
-// It contains a pair of any two letters that appears at least twice in the string without overlapping, like xyxy (xy) or aabcdefgaa (aa), but not like aaa (aa, but it overlaps).
-fn two_pairs(string: &str) -> bool {
-    if string.len() < 4 {
-        return false;
-    }
-
-    let pair = &string[0..2];
-    let remain = &string[2..];
-
-    remain.contains(pair) || two_pairs(&string[1..])
-}
-
-// It contains at least one letter which repeats with exactly one letter between them, like xyx, abcdefeghi (efe), or even aaa.
-fn repeat_separated(string: &str) -> bool {
-    string
-        .chars()
-        .zip(string.chars().skip(2))
-        .any(|(a, b)| a == b)
-}
-
-fn is_really_nice(string: &str) -> bool {
-    two_pairs(string) && repeat_separated(string)
+        .collect()
 }
 
 #[aoc(day5, part2)]
-pub fn part2(input: &str) -> usize {
-    input.lines().filter(|l| is_really_nice(l.trim())).count()
-}
+pub fn solve_part2(input: &[Arrow]) -> i32 {
+    const LEN: usize = 1000;
+    let mut table = [[0; LEN]; LEN];
+    for &((x1, y1), (x2, y2)) in input {
+        if x1 == x2 {
+            let (b, e): (usize, usize) = if y1 <= y2 { (y1, y2) } else { (y2, y1) };
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+            for y in b..e + 1 {
+                table[y][x1] += 1;
+            }
+        } else if y1 == y2 {
+            let (b, e) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
 
-    #[test]
-    // ugknbfddgicrmopn is nice because it has at least three vowels (u...i...o...), a double letter (...dd...), and none of the disallowed substrings.
-    fn example_1() {
-        assert!(is_nice("ugknbfddgicrmopn"));
+            for x in b..e+1 {
+                table[y1][x] += 1;
+            }
+        } else {
+            let x1 = x1 as i32;
+            let y1 = y1 as i32;
+            let x2 = x2 as i32;
+            let y2 = y2 as i32;
+
+            let len = (x2 - x1).abs();
+
+            let dx = (x2 - x1) / len;
+            let dy = (y2 - y1) / len;
+            for i in 0..len+1 {
+                let x = x1 + i * dx;
+                let y = y1 + i * dy;
+                table[y as usize][x as usize] += 1;
+            }
+
+        }
+    }
+    let mut count = 0;
+    for x in 0..LEN {
+        for y in 0..LEN {
+            if table[x][y] > 1 {
+                count += 1;
+            }
+        }
     }
 
-    #[test]
-    // aaa is nice because it has at least three vowels and a double letter, even though the letters used by different rules overlap.
-    fn example_2() {
-        assert!(is_nice("aaa"));
-    }
-
-    #[test]
-    // jchzalrnumimnmhp is naughty because it has no double letter.
-    fn example_3() {
-        assert!(!is_nice("jchzalrnumimnmhp"));
-        assert!(!twice_in_a_row("jchzalrnumimnmhp"));
-    }
-
-    #[test]
-    // haegwjzuvuyypxyu is naughty because it contains the string xy.
-    fn example_4() {
-        assert!(!is_nice("haegwjzuvuyypxyu"));
-        assert!(!no_forbidden_strings("haegwjzuvuyypxyu"));
-    }
-
-    #[test]
-    // dvszwmarrgswjxmb is naughty because it contains only one vowel.
-    fn example_5() {
-        assert!(!is_nice("dvszwmarrgswjxmb"));
-        assert!(!three_vowels("dvszwmarrgswjxmb"));
-    }
-
-    #[test]
-    // qjhvhtzxzqqjkmpb is nice because is has a pair that appears twice (qj) and a letter that repeats with exactly one letter between them (zxz).
-    fn example_6() {
-        assert!(is_really_nice("qjhvhtzxzqqjkmpb"));
-    }
-
-    #[test]
-    // xxyxx is nice because it has a pair that appears twice and a letter that repeats with one between, even though the letters used by each rule overlap.
-    fn example_7() {
-        assert!(is_really_nice("xxyxx"));
-    }
-
-    #[test]
-    // uurcxstgmygtbstg is naughty because it has a pair (tg) but no repeat with a single letter between them.
-    fn example_8() {
-        assert!(!is_really_nice("uurcxstgmygtbstg"));
-        assert!(!repeat_separated("uurcxstgmygtbstg"));
-    }
-
-    #[test]
-    // ieodomkazucvgmuy is naughty because it has a repeating letter with one between (odo), but no pair that appears twice.
-    fn example_9() {
-        assert!(!is_really_nice("ieodomkazucvgmuy"));
-        assert!(!two_pairs("ieodomkazucvgmuy"));
-    }
-
+    count
 }

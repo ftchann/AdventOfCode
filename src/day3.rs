@@ -1,73 +1,87 @@
-use std::collections::HashSet;
+#[aoc_generator(day3)]
+pub fn input_generator(input: &str) -> Vec<Vec<char>> {
+    input.lines()
+        .map(|line| {
+            line.chars()
+                .collect()
+        })
+        .collect()
 
-type Position = (i32, i32);
+}
 
 #[aoc(day3, part1)]
-pub fn part1(input: &str) -> usize {
-    let mut houses: HashSet<Position> = HashSet::new();
-    let mut current_pos = (0, 0);
-
-    houses.insert(current_pos);
-
-    for &c in input.as_bytes() {
-        match c {
-            b'>' => current_pos.0 += 1,
-            b'<' => current_pos.0 -= 1,
-            b'^' => current_pos.1 += 1,
-            b'v' => current_pos.1 -= 1,
-            _ => unreachable!(),
+pub fn solve_part1(input: &Vec<Vec<char>>) -> u32 {
+    let len = input[0].len();
+    let mut number: Vec<char> = Vec::new();
+    for j in 0..len {
+        let mut count_ones = 0;
+        for i in 0..input.len() {
+            if input[i][j] == '1' {
+                count_ones += 1;
+            }
         }
-
-        houses.insert(current_pos);
+        if count_ones >= input.len() / 2 {
+            number.push('1');
+        } else {
+            number.push('0');
+        }
     }
-
-    houses.len()
+    let numberstr = number.iter().collect::<String>();
+    let number_int = u32::from_str_radix(&numberstr, 2).unwrap();
+    let numberstr_flipped = number.iter().map(|x| if *x == '1' { '0' } else { '1' }).collect::<String>();
+    let number_flipped = u32::from_str_radix(&numberstr_flipped, 2).unwrap();
+    number_int * number_flipped
 }
 
 #[aoc(day3, part2)]
-pub fn part2(input: &str) -> usize {
-    let mut houses: HashSet<Position> = HashSet::new();
-    let mut santa = (0, 0);
-    let mut robot = (0, 0);
-
-    houses.insert(santa);
-
-    for (i, &c) in input.as_bytes().iter().enumerate() {
-        let current_pos = if i % 2 == 0 { &mut santa } else { &mut robot };
-
-        match c {
-            b'>' => current_pos.0 += 1,
-            b'<' => current_pos.0 -= 1,
-            b'^' => current_pos.1 += 1,
-            b'v' => current_pos.1 -= 1,
-            _ => unreachable!(),
+pub fn solve_part2(input: &Vec<Vec<char>>) -> u32 {
+    let len = input[0].len();
+    let mut numbers = input.clone();
+    //Co2
+    for j in 0..len {
+        let mut count_zeros = 0;
+        for i in 0..numbers.len() {
+            if numbers[i][j] == '0' {
+                count_zeros += 1;
+            }
         }
-
-        houses.insert(*current_pos);
+        let keep : char;
+        if count_zeros <= numbers.len() / 2 {
+            keep = '0';
+        } else {
+            keep = '1';
+        }
+        numbers.retain(|x| x[j] == keep);
+        if numbers.len() == 1 {
+            break
+        }
     }
 
-    houses.len()
-}
-
-#[cfg(tests)]
-mod tests {
-    use super::*;
-
-    #[test]
-    // > delivers presents to 2 houses: one at the starting location, and one to the east.
-    fn example1() {
-        assert_eq!(part1(">"), 2);
+    let co2_str = numbers[0].iter().collect::<String>();
+    let co2 = u32::from_str_radix(&co2_str, 2).unwrap();
+    //O2
+    let mut numbers = input.clone();
+    for j in 0..len {
+        let mut count_ones = 0;
+        for i in 0..numbers.len() {
+            if numbers[i][j] == '1' {
+                count_ones += 1;
+            }
+        }
+        let keep : char;
+        if count_ones > numbers.len() / 2 || (count_ones == numbers.len() / 2 && numbers.len() % 2 == 0)  {
+            keep = '1';
+        } else {
+            keep = '0';
+        }
+        numbers.retain(|x| x[j] == keep);
+        if numbers.len() == 1 {
+            break
+        }
     }
+    let o2_str = numbers[0].iter().collect::<String>();
+    let o2 = u32::from_str_radix(&o2_str, 2).unwrap();
+    co2 * o2
 
-    #[test]
-    // ^>v< delivers presents to 4 houses in a square, including twice to the house at his starting/ending location.
-    fn example2() {
-        assert_eq!(part1("^>v<"), 4);
-    }
 
-    #[test]
-    // ^v^v^v^v^v delivers a bunch of presents to some very lucky children at only 2 houses.
-    fn example3() {
-        assert_eq!(part1("^v^v^v^v^v"), 2);
-    }
 }
