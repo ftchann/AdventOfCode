@@ -6,6 +6,7 @@ extern crate aoc_runner_derive;
 extern crate crypto;
 extern crate num;
 extern crate proc_macro;
+extern crate core;
 
 mod day1;
 mod day2;
@@ -24,5 +25,6 @@ mod day14;
 mod day15;
 mod day16;
 mod day17;
+mod day18;
 
 aoc_lib!{ year = 2021 }
